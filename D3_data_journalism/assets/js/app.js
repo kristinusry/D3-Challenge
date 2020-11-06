@@ -1,123 +1,109 @@
+// SVG layout
 var svgWidth = 960;
-var svgHeight = 500;
+var svgHeight = 600;
 
 var margin = {
   top: 20,
   right: 40,
-  bottom: 60,
+  bottom: 150,
   left: 100
 };
 
 var width = svgWidth - margin.left - margin.right;
 var height = svgHeight - margin.top - margin.bottom;
 
-// Create an SVG wrapper, append an SVG group that will hold our chart, and shift the latter by left and top margins.
-var svg = d3.select("#scatter")
+// Create an SVG wrapper, append an SVG group that will hold our chart,
+// and shift the latter by left and top margins.
+var svg = d3
+  .select("#scatter")
   .append("svg")
-  .classed("chart", true)
   .attr("width", svgWidth)
   .attr("height", svgHeight);
 
+// Append an SVG group
 var chartGroup = svg.append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-// Import Data
-d3.csv("./assets/data/data.csv").then(function(hairData) {
+// Initial Params
+var chosenXAxis = "poverty";
+var chosenYAxis = "healthcare";
 
-    // Step 1: Parse Data/Cast as numbers
-    // ==============================
-    hairData.forEach(function(data) {
-      data.obesity = +data.obesity;
-      data.income = +data.income;
-      data.smokes = +data.smokes;
-      data.age = +data.age;
-      data.healthcare = +data.healthcare;
-      data.poverty = +data.poverty;
-    });
-
-    // Step 2: Create scale functions
-    // ==============================
+//function used for updating x-scale var upon clicking on axis label
+function xScale(censusData, chosenXAxis) {
+    //create scales
     var xLinearScale = d3.scaleLinear()
-      .domain([20, d3.max(hairData, d => d.poverty)])
-      .range([0, width]);
+        .domain([d3.min(censusData, d => d[chosenXAxis]) * 0.8,
+            d3.max(censusData, d => d[chosenXAxis]) * 1.2
+        ])
+        .range([0, width]);
 
-    var yLinearScale = d3.scaleLinear()
-      .domain([0, d3.max(hairData, d => d.healthcare)])
-      .range([height, 0]);
+    return xLinearScale;
+}
 
-    // Step 3: Create axis functions
-    // ==============================
-    var bottomAxis = d3.axisBottom(xLinearScale);
-    var leftAxis = d3.axisLeft(yLinearScale);
+//function used for updating xAxis var upon click on axis label
+function renderAxesX(newXScale, xAxis) {
+  var bottomAxis = d3.axisBottom(newXScale);
 
-    // Step 4: Append Axes to the chart
-    // ==============================
-    chartGroup.append("g")
-      .attr("transform", `translate(0, ${height})`)
+  xAxis.transition()
+      .duration(1000)
       .call(bottomAxis);
 
-    chartGroup.append("g")
-      .call(leftAxis);
+  return xAxis;
+}
 
-    // Step 5: Create Circles
-    // ==============================
-    var circlesGroup = chartGroup.selectAll("circle")
-    .data(hairData)
-    .enter()
-    .append("circle")
-    .attr("cx", d => xLinearScale(d.poverty))
-    .attr("cy", d => yLinearScale(d.healthcare))
-    .attr("r", "15")
-    .classed("stateCircle", true)
-    .attr("opacity", ".5");
+// function used for updating circles group with a transition to
+// new circles
+function renderCircles(circlesGroup, newXScale, chosenXAxis, newYScale, chosenYAxis) {
 
-    chartGroup.selectAll(".stateText")
-        .data(hairData)
-        .enter()
-        .append("text")
-        .classed("stateText", true)
-        .attr("x", d => xLinearScale(d.poverty))
-        .attr("y", d => yLinearScale(d.healthcare))
-        .attr("dy", 3)
-        .attr("font-size", "10px")
-        .text(function(d) { return d.abbr });
+  circlesGroup.transition()
+      .duration(1000)
+      .attr("cx", data => newXScale(data[chosenXAxis]))
+      .attr("cy", data => newYScale(data[chosenYAxis]));
 
-    // Step 6: Initialize tool tip
-    // ==============================
-    var toolTip = d3.tip()
+  return circlesGroup;
+}
+
+// function used for updating circles group with new tooltip
+function updateToolTip(chosenXAxis, chosenYAxis, circlesGroup) {
+
+  // x titles
+  if (chosenXAxis === 'poverty') {
+      var xLabel = "In Poverty:";
+  }
+  else if (chosenXAxis === 'income') {
+      var xLabel = "Household Income:";
+  }
+  else {
+      var xLabel = "Age:";
+  }
+
+  // y titles
+  if (chosenYAxis === 'healthcare') {
+      var yLabel = "Lacks Healthcare:"
+  }
+  else if (chosenYAxis === 'obesity') {
+      var yLabel = "Obesity:"
+  }
+  else {
+      var yLabel = "Smokers:"
+  }
+
+  //create tooltip
+  var toolTip = d3.tip()
       .attr("class", "d3-tip")
-      .offset([80, -60])
+      .offset([0, 0])
       .html(function(d) {
-        return (`${d.state}<br>Poverty: ${d.poverty}<br>Heatlhcare: ${d.healthcare}`);
+          return (`${d.state}<br>${xLabel} ${styleX(d[chosenXAxis], chosenXAxis)}<br>${yLabel} ${d[chosenYAxis]}%`);
       });
 
-    // Step 7: Create tooltip in the chart
-    // ==============================
-    chartGroup.call(toolTip);
+  circlesGroup.call(toolTip);
 
-    // Step 8: Create event listeners to display and hide the tooltip
-    // ==============================
-    circlesGroup.on("click", function(data) {
-      toolTip.show(data, this);
-    })
-      // onmouseout event
-      .on("mouseout", function(data, index) {
-        toolTip.hide(data);
-      });
-      
-    // Create axes labels
-    chartGroup.append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 0 - margin.left + 40)
-      .attr("x", 0 - (height / 2))
-      .attr("dy", "1em")
-      .attr("class", "axisText")
-      .text("Lacks Healthcare (%)");
+  //add events
+  circlesGroup.on("mouseover", toolTip.show)
+      .on("mouseout", toolTip.hide);
 
-    chartGroup.append("text")
-      .attr("transform", `translate(${width / 2}, ${height + margin.top + 30})`)
-      .attr("class", "axisText")
-      .text("In Poverty (%)");
-  }).catch(function(error) {
-    console.log(error);
-  });
+  return circlesGroup;
+}
+
+
+
