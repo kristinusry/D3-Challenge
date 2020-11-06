@@ -86,6 +86,18 @@ function renderCircles(circlesGroup, newXScale, chosenXAxis, newYScale, chosenYA
   return circlesGroup;
 }
 
+//function used for updating state labels with a transition to
+// new circles
+function moveLabels(labelsGroup, newXScale, chosenXAxis, newYScale, chosenYAxis) {
+
+  labelsGroup.transition()
+      .duration(1000)
+      .attr("x", data => newXScale(data[chosenXAxis]))
+      .attr("y", data => newYScale(data[chosenYAxis]));
+
+      return labelsGroup;
+}
+
 // function used for updating circles group with new tooltip
 function updateToolTip(chosenXAxis, chosenYAxis, circlesGroup) {
 
@@ -111,22 +123,37 @@ function updateToolTip(chosenXAxis, chosenYAxis, circlesGroup) {
       var yLabel = "Smokers:"
   }
 
-  //create tooltip
+  // create tooltip
   var toolTip = d3.tip()
       .attr("class", "d3-tip")
       .offset([0, 0])
       .html(function(d) {
-          return (`${d.state}<br>${xLabel} ${styleX(d[chosenXAxis], chosenXAxis)}<br>${yLabel} ${d[chosenYAxis]}%`);
+          return (`${d.state}<br>${xLabel} ${formatNum(d[chosenXAxis], chosenXAxis)}<br>${yLabel} ${d[chosenYAxis]}%`);
       });
 
   circlesGroup.call(toolTip);
 
-  //add events
+  // add events
   circlesGroup.on("mouseover", toolTip.show)
       .on("mouseout", toolTip.hide);
 
   return circlesGroup;
 }
+
+// function used for updating the formatting of the numbers in tooltop
+function formatNum(value, chosenXAxis) {
+
+  if (chosenXAxis === 'poverty') {
+      return `${value}%`;
+  }
+  else if (chosenXAxis === 'income') {
+      return `$${value}`;
+  }
+  else {
+      return `${value}`;
+  }
+}
+
 
 
 // Retrieve data from the CSV file and execute everything below
@@ -175,7 +202,7 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
       .attr("r", 12)
       .attr("opacity", ".5");
 
-    var textGroup = chartGroup.selectAll(".stateText")
+    var labelsGroup = chartGroup.selectAll(".stateText")
       .data(censusData)
       .enter()
       .append("text")
@@ -271,7 +298,7 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
           circlesGroup = renderCircles(circlesGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis);
 
           //update text with new x values
-          textGroup = renderText(textGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis);
+          labelsGroup = moveLabels(labelsGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis);
 
           //update tooltips with new info
           circlesGroup = updateToolTip(chosenXAxis, chosenYAxis, circlesGroup);
@@ -333,7 +360,7 @@ yLabelsGroup.selectAll("text")
           circlesGroup = renderCircles(circlesGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis);
 
           //update text with new y values
-          textGroup = renderText(textGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis)
+          labelsGroup = moveLabels(labelsGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis)
 
           //update tooltips with new info
           circlesGroup = updateToolTip(chosenXAxis, chosenYAxis, circlesGroup);
@@ -379,3 +406,8 @@ yLabelsGroup.selectAll("text")
 
 
 
+
+
+
+
+  
